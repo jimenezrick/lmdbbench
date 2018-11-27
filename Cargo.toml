@@ -1,0 +1,11 @@
+[package]
+name = "lmdbbench"
+version = "0.1.0"
+authors = ["Ricardo Catalinas Jiménez <r@untroubled.be>"]
+edition = "2018"
+
+[dependencies]
+lmdb = "0.8.0"
+lmdb-sys = "0.8.0"
+rand = "0.6"
+byteorder = "1.2.7"
