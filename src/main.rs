@@ -61,6 +61,8 @@ fn main() -> lmdb::Result<()> {
     let val = initialize_value(MAX_VAL_SIZE);
 
     let env_path = env::args().take(2).last().unwrap();
+    let check = env::args().skip(2).next().map_or(false, |a| a == "check");
+
     let env = lmdb::Environment::new()
         .set_flags(lmdb::EnvironmentFlags::NO_SYNC)
         .set_map_size(2usize.pow(30) * 10) // 10GiB
@@ -78,6 +80,13 @@ fn main() -> lmdb::Result<()> {
             last_key = last;
             println!("Last key in DB {}", last_key);
         }
+    }
+    if check {
+        let ro_txn = env.begin_ro_txn()?;
+        let mut key = [0; 8];
+        BigEndian::write_u64(&mut key, last_key);
+        ro_txn.get(db, &key)?;
+        return Ok(());
     }
 
     // Delete existing keys
