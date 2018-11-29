@@ -29,7 +29,7 @@ fn initialize_value(len: usize) -> Vec<u8> {
     v
 }
 
-fn verify_db(env: &lmdb::Environment, db: lmdb::Database) {
+fn verify_db(env: &lmdb::Environment, db: lmdb::Database, dump: bool) {
     let ro_txn = env.begin_ro_txn().unwrap();
     let mut cur = ro_txn.open_ro_cursor(db).unwrap();
 
@@ -37,8 +37,12 @@ fn verify_db(env: &lmdb::Environment, db: lmdb::Database) {
     let expect_val = initialize_value(MAX_VAL_SIZE);
 
     for (k, v) in cur.iter() {
-        assert_eq!(expect_key, BigEndian::read_u64(k));
-        assert_eq!(expect_val[..v.len()].to_vec(), v);
+        if dump {
+            println!("{:?}: {:?}", BigEndian::read_u64(k), v);
+        } else {
+            assert_eq!(expect_key, BigEndian::read_u64(k));
+            assert_eq!(expect_val[..v.len()].to_vec(), v);
+        }
         expect_key += 1;
     }
 }
@@ -50,7 +54,7 @@ fn get_last_key(env: &lmdb::Environment, db: lmdb::Database) -> Option<u64> {
     match cur.get(None, None, lmdb_sys::MDB_LAST) {
         Err(_) => None,
         Ok((Some(key), _)) => Some(BigEndian::read_u64(key)),
-        Ok((None, _)) => None,
+        Ok((None, _)) => panic!("Unexpected"),
     }
 }
 
@@ -62,6 +66,7 @@ fn main() -> lmdb::Result<()> {
 
     let env_path = env::args().take(2).last().unwrap();
     let check = env::args().skip(2).next().map_or(false, |a| a == "check");
+    let dump = env::args().skip(2).next().map_or(false, |a| a == "dump");
 
     let env = lmdb::Environment::new()
         .set_flags(lmdb::EnvironmentFlags::NO_SYNC)
@@ -69,10 +74,15 @@ fn main() -> lmdb::Result<()> {
         .open(Path::new(&env_path))?;
     let db = env.open_db(None)?;
 
+    if dump {
+        verify_db(&env, db, true);
+        return Ok(());
+    }
+
     // Verify existing keys
     print_stat(&env);
     println!("Verifying DB");
-    verify_db(&env, db);
+    verify_db(&env, db, false);
     println!("OK");
     match get_last_key(&env, db) {
         None => println!("Empty DB"),
