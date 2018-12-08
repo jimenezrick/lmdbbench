@@ -67,10 +67,16 @@ fn main() -> lmdb::Result<()> {
     let env_path = env::args().take(2).last().unwrap();
     let check = env::args().skip(2).next().map_or(false, |a| a == "check");
     let dump = env::args().skip(2).next().map_or(false, |a| a == "dump");
+    let sync = env::args().skip(2).next().map_or(false, |a| a == "sync");
 
+    let flags = if sync {
+        lmdb::EnvironmentFlags::empty()
+    } else {
+        lmdb::EnvironmentFlags::NO_SYNC
+    };
     let env = lmdb::Environment::new()
-        .set_flags(lmdb::EnvironmentFlags::NO_SYNC)
-        .set_map_size(2usize.pow(30) * 10) // 10GiB
+        .set_flags(flags)
+        .set_map_size(2usize.pow(30) * 100) // 100GiB
         .open(Path::new(&env_path))?;
     let db = env.open_db(None)?;
 
